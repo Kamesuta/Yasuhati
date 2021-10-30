@@ -18,16 +18,29 @@ public class GuiVolume extends Screen {
     protected ITextComponent confirmButtonText;
     private int ticksUntilEnable;
     protected final BiConsumer<Double, Double> callbackFunction;
-    private final DecibelInput decibelInput;
     private double nowDb;
     private double walkDb;
     private double jumpDb;
 
-    public GuiVolume(BiConsumer<Double, Double> callback, ITextComponent title, DecibelInput decibelInput) {
+    public GuiVolume(BiConsumer<Double, Double> callback, ITextComponent title) {
         super(title);
         this.callbackFunction = callback;
         this.confirmButtonText = DialogTexts.GUI_DONE;
-        this.decibelInput = decibelInput;
+    }
+
+    private static double logSlider(double position) {
+        // position will be between 0 and 1
+        double minp = 0;
+        double maxp = 1;
+
+        // The result should be between 0 an 500
+        double minv = Math.log(0.01);
+        double maxv = Math.log(1000);
+
+        // calculate adjustment factor
+        double scale = (maxv - minv) / (maxp - minp);
+
+        return Math.exp(minv + scale * (position - minp));
     }
 
     protected void init() {
@@ -37,17 +50,21 @@ public class GuiVolume extends Screen {
                 this.width / 2 - 155,
                 this.height / 6 - 12 + 24 * i,
                 270, 20,
-                new StringTextComponent("歩くときの声の大きさ"), 0.2) {
+                new StringTextComponent("歩くときの声の大きさ"), 0.46) {
+
+            {
+                func_230979_b_();
+            }
+
             @Override
             protected void func_230979_b_() {
                 // 毎チック
-
+                walkDb = logSlider(sliderValue);
             }
 
             @Override
             protected void func_230972_a_() {
                 // 変更時のみ
-                walkDb = (sliderValue - 1) * 35;
             }
         });
         i = 5;
@@ -55,17 +72,21 @@ public class GuiVolume extends Screen {
                 this.width / 2 - 155,
                 this.height / 6 - 12 + 24 * i,
                 270, 20,
-                new StringTextComponent("ジャンプする時の声の大きさ"), 0.8) {
+                new StringTextComponent("ジャンプする時の声の大きさ"), 0.72) {
+
+            {
+                func_230979_b_();
+            }
+
             @Override
             protected void func_230979_b_() {
                 // 毎チック
-
+                jumpDb = logSlider(sliderValue);
             }
 
             @Override
             protected void func_230972_a_() {
                 // 変更時のみ
-                jumpDb = (sliderValue - 1) * 35;
             }
         });
         this.addButton(new Button(this.width / 2 - 75, this.height / 6 + 96 + 50, 150, 20, this.confirmButtonText, (p_213002_1_) -> {
@@ -74,6 +95,8 @@ public class GuiVolume extends Screen {
     }
 
     public void render(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
+        nowDb = MicTester.micLev;
+
         this.renderBackground(matrixStack);
         drawCenteredString(matrixStack, this.font, this.title, this.width / 2, 40, 16777215);
         int i = 4;
@@ -108,7 +131,6 @@ public class GuiVolume extends Screen {
                 widget.active = true;
             }
         }
-        nowDb = decibelInput.getDecibel().average;
     }
 
     public boolean shouldCloseOnEsc() {
