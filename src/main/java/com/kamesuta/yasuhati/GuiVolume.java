@@ -9,23 +9,20 @@ import net.minecraft.client.gui.widget.button.Button;
 import net.minecraft.util.text.ITextComponent;
 import net.minecraft.util.text.StringTextComponent;
 
-import java.util.function.BiConsumer;
-
 public class GuiVolume extends Screen {
     /**
      * The text shown for the first button in GuiYesNo
      */
     protected ITextComponent confirmButtonText;
     private int ticksUntilEnable;
-    protected final BiConsumer<Double, Double> callbackFunction;
-    private double nowDb;
     private double walkDb;
     private double jumpDb;
 
-    public GuiVolume(BiConsumer<Double, Double> callback, ITextComponent title) {
-        super(title);
-        this.callbackFunction = callback;
-        this.confirmButtonText = DialogTexts.GUI_DONE;
+    public GuiVolume() {
+        super(new StringTextComponent("音量設定"));
+        confirmButtonText = new StringTextComponent("セーブ");
+        walkDb = Yasuhati.walkDb;
+        jumpDb = Yasuhati.jumpDb;
     }
 
     private static double logSlider(double position) {
@@ -43,6 +40,21 @@ public class GuiVolume extends Screen {
         return Math.exp(minv + scale * (position - minp));
     }
 
+    private static double unLogSlider(double volume) {
+        // position will be between 0 and 1
+        double minp = 0;
+        double maxp = 1;
+
+        // The result should be between 0 an 500
+        double minv = Math.log(0.01);
+        double maxv = Math.log(1000);
+
+        // calculate adjustment factor
+        double scale = (maxv - minv) / (maxp - minp);
+
+        return (Math.log(volume) - minv) / scale + minp;
+    }
+
     protected void init() {
         super.init();
         int i = 4;
@@ -50,7 +62,7 @@ public class GuiVolume extends Screen {
                 this.width / 2 - 155,
                 this.height / 6 - 12 + 24 * i,
                 270, 20,
-                new StringTextComponent("歩くときの声の大きさ"), 0.46) {
+                new StringTextComponent("歩くときの声の大きさ"), unLogSlider(walkDb)) {
 
             {
                 func_230979_b_();
@@ -72,7 +84,7 @@ public class GuiVolume extends Screen {
                 this.width / 2 - 155,
                 this.height / 6 - 12 + 24 * i,
                 270, 20,
-                new StringTextComponent("ジャンプする時の声の大きさ"), 0.72) {
+                new StringTextComponent("ジャンプする時の声の大きさ"), unLogSlider(jumpDb)) {
 
             {
                 func_230979_b_();
@@ -90,12 +102,12 @@ public class GuiVolume extends Screen {
             }
         });
         this.addButton(new Button(this.width / 2 - 75, this.height / 6 + 96 + 50, 150, 20, this.confirmButtonText, (p_213002_1_) -> {
-            this.callbackFunction.accept(walkDb, jumpDb);
+            closeScreen();
         }));
     }
 
     public void render(MatrixStack matrixStack, int mouseX, int mouseY, float partialTicks) {
-        nowDb = MicTester.micLev;
+        double nowDb = MicTester.micLev;
 
         this.renderBackground(matrixStack);
         drawCenteredString(matrixStack, this.font, this.title, this.width / 2, 40, 16777215);
@@ -133,13 +145,19 @@ public class GuiVolume extends Screen {
         }
     }
 
+    @Override
+    public void onClose() {
+        Yasuhati.walkDb = walkDb;
+        Yasuhati.jumpDb = jumpDb;
+    }
+
     public boolean shouldCloseOnEsc() {
         return false;
     }
 
     public boolean keyPressed(int keyCode, int scanCode, int modifiers) {
         if (keyCode == 256) {
-            this.callbackFunction.accept(walkDb, jumpDb);
+            closeScreen();
             return true;
         } else {
             return super.keyPressed(keyCode, scanCode, modifiers);
